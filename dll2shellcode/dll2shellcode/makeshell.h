@@ -1,12 +1,5 @@
-//dll2shellcode.cpp : Defines the entry point for the console application.
-
+#pragma once
 #include <Windows.h>
-#include <iostream>
-#include <string>
-
-
-using namespace std;
-
 DWORD dwFlag = 0xffeeddcc;
 
 #define  GetAlignedSize(nOrigin, nAlignment)  ((nOrigin) + (nAlignment) - 1) / (nAlignment) * (nAlignment)
@@ -115,97 +108,97 @@ void WINAPI ShellHeader()
 	//得到Kernel32句柄和GetProcAddress地址
 #ifdef _WIN64
 	_asm
-		{
-			//http://blog.csdn.net/xboxmicro/article/details/19422443 x64 peb自己windbg看下
-			//http://bbs.pediy.com/showthread.php?t=145559
-			//https://www.exploit-db.com/exploits/13533/
-			//这编译器不支持 地址是[eax] 类似的4位寄存器 所以下面写的有些麻烦
-			push rsi
-				push rdi
-				push rdx
-				push rax
-				push rbx
-				push rcx
-				push rbp
-				push r8
-				push r9
-				push r10
-				push r11
-				push r12
-				push r13
-				push r14
-				push r15
+	{
+		//http://blog.csdn.net/xboxmicro/article/details/19422443 x64 peb自己windbg看下
+		//http://bbs.pediy.com/showthread.php?t=145559
+		//https://www.exploit-db.com/exploits/13533/
+		//这编译器不支持 地址是[eax] 类似的4位寄存器 所以下面写的有些麻烦
+		push rsi
+		push rdi
+		push rdx
+		push rax
+		push rbx
+		push rcx
+		push rbp
+		push r8
+		push r9
+		push r10
+		push r11
+		push r12
+		push r13
+		push r14
+		push r15
 
-				mov rax, qword ptr gs : [0x60]; //peb
-			mov rax, qword ptr[rax + 0x18]; //peb ldr
-			mov rax, qword ptr[rax + 0x10];//InLoadOrderModuleList 10 InMemoryOrderModuleList20 InInitializationOrderModuleList 30
-			mov rax, qword ptr[rax];
-			mov rax, qword ptr[rax];	//跳过ntdll	
-			mov rax, qword ptr[rax + 30h];//kernel32 base
+		mov rax, qword ptr gs : [0x60]; //peb
+		mov rax, qword ptr[rax + 0x18]; //peb ldr
+		mov rax, qword ptr[rax + 0x10];//InLoadOrderModuleList 10 InMemoryOrderModuleList20 InInitializationOrderModuleList 30
+		mov rax, qword ptr[rax];
+		mov rax, qword ptr[rax];	//跳过ntdll	
+		mov rax, qword ptr[rax + 30h];//kernel32 base
 
-			mov hMod, rax;
-			mov myGetProcAddress, rax;
+		mov hMod, rax;
+		mov myGetProcAddress, rax;
 
-			push rbp;
-			mov rbp, rax;   // Kernel.dll基址  
-			xor rax, rax;
-			mov eax, dword ptr ds : [rbp + 3CH];      // eax=PE首部  
-			xor rdx, rdx;
-			mov edx, dword ptr ds : [rax + rbp + 88H]  //  export directory begins at 88h
-				add rdx, rbp                         // rdx=引出表地址 
-				xor rcx, rcx;
-			mov ecx, dword ptr ds : [rdx + 18H]      // ecx=导出函数个数，NumberOfNames  
-				mov ebx, dword ptr ds : [rdx + 20H]      //  ebx=AddressOfNames
-				add rbx, rbp                         // rbx=函数名地址，AddressOfName  
+		push rbp;
+		mov rbp, rax;   // Kernel.dll基址  
+		xor rax, rax;
+		mov eax, dword ptr ds : [rbp + 3CH];      // eax=PE首部  
+		xor rdx, rdx;
+		mov edx, dword ptr ds : [rax + rbp + 88H]  //  export directory begins at 88h
+			add rdx, rbp                         // rdx=引出表地址 
+			xor rcx, rcx;
+		mov ecx, dword ptr ds : [rdx + 18H]      // ecx=导出函数个数，NumberOfNames  
+			mov ebx, dword ptr ds : [rdx + 20H]      //  ebx=AddressOfNames
+			add rbx, rbp                         // rbx=函数名地址，AddressOfName  
 			start :                                      //  
-			dec ecx                             // 循环的开始  
-				xor esi, esi;
-			mov esi, dword ptr ds : [rbx + rcx * 4]    //  
-				add rsi, rbp                         //  
-				mov eax, 0x50746547                  //  
-				cmp dword ptr ds : [rsi], eax          // 比较PteG  
-				jnz start                           //  
-				mov eax, 0x41636F72                  //  
-				cmp dword ptr ds : [rsi + 4], eax        // 比较Acor，通过GetProcA几个字符就能确定是GetProcAddress  
-				jnz start                           //  
-				xor rbx, rbx;
-			mov ebx, dword ptr ds : [rdx + 24H]      //  
-				add rbx, rbp                         //  
-				mov cx, word ptr ds : [rbx + rcx * 2]      //  
-				mov ebx, dword ptr ds : [rdx + 1CH]      //  
-				add rbx, rbp                         //  
-				xor rax, rax;
-			mov eax, dword ptr ds : [rbx + rcx * 4]    //  
-				add rax, rbp                         // eax 现在是GetProcAddress地址  
-				mov rbx, rax                         // GetProcAddress地址存入ebx，如果写ShellCode的话以后还可以  整个值还是保存为
+		dec ecx                             // 循环的开始  
+			xor esi, esi;
+		mov esi, dword ptr ds : [rbx + rcx * 4]    //  
+			add rsi, rbp                         //  
+			mov eax, 0x50746547                  //  
+			cmp dword ptr ds : [rsi], eax          // 比较PteG  
+			jnz start                           //  
+			mov eax, 0x41636F72                  //  
+			cmp dword ptr ds : [rsi + 4], eax        // 比较Acor，通过GetProcA几个字符就能确定是GetProcAddress  
+			jnz start                           //  
+			xor rbx, rbx;
+		mov ebx, dword ptr ds : [rdx + 24H]      //  
+			add rbx, rbp                         //  
+			mov cx, word ptr ds : [rbx + rcx * 2]      //  
+			mov ebx, dword ptr ds : [rdx + 1CH]      //  
+			add rbx, rbp                         //  
+			xor rax, rax;
+		mov eax, dword ptr ds : [rbx + rcx * 4]    //  
+			add rax, rbp                         // eax 现在是GetProcAddress地址  
+			mov rbx, rax                         // GetProcAddress地址存入ebx，如果写ShellCode的话以后还可以  整个值还是保存为
 
-				pop rbp
+			pop rbp
 
-				push rbx
-				pop myGetProcAddress
+			push rbx
+			pop myGetProcAddress
 
-				pop r15
-				pop r14
-				pop r13
-				pop r12
-				pop r11
-				pop r10
-				pop r9
-				pop r8
-				pop rbp
-				pop rcx
-				pop rbx
-				pop rax
-				pop rdx
-				pop rdi
-				pop rsi
-		}
+			pop r15
+			pop r14
+			pop r13
+			pop r12
+			pop r11
+			pop r10
+			pop r9
+			pop r8
+			pop rbp
+			pop rcx
+			pop rbx
+			pop rax
+			pop rdx
+			pop rdi
+			pop rsi
+	}
 
 
 #else
 
 
-	__asm{
+	__asm {
 
 		pushad    //保存寄存器
 
@@ -217,9 +210,9 @@ void WINAPI ShellHeader()
 		mov eax, dword ptr[eax + 0x18];
 
 		mov hMod, eax
-		mov myGetProcAddress, eax
+			mov myGetProcAddress, eax
 
-		push ebp
+			push ebp
 
 			mov ebp, eax                         // Kernel.dll基址  
 			mov eax, dword ptr ss : [ebp + 3CH]      // eax=PE首部  
@@ -228,7 +221,7 @@ void WINAPI ShellHeader()
 			mov ecx, dword ptr ds : [edx + 18H]      // ecx=导出函数个数，NumberOfFunctions  
 			mov ebx, dword ptr ds : [edx + 20H]      //  
 			add ebx, ebp                         // ebx=函数名地址，AddressOfName  
-		start :                                      //  
+			start :                                      //  
 		dec ecx                             // 循环的开始  
 			mov esi, dword ptr ds : [ebx + ecx * 4]    //  
 			add esi, ebp                         //  
@@ -256,7 +249,7 @@ void WINAPI ShellHeader()
 	}
 #endif
 
-#ifdef _WIN64
+	//#ifdef _WIN64
 	char szImport[255];
 
 	szImport[0] = 'L';
@@ -343,20 +336,20 @@ void WINAPI ShellHeader()
 	szImport[10] = 'a';
 
 	myGetModuleHandleA = (MyGetModuleHandleA)myGetProcAddress(hMod, szImport);
-#else
-	char szLoadLibrary[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
-	myLoadLibrayA = (MyLoadLibraryA)myGetProcAddress(hMod, szLoadLibrary);
-	char szVirtualAlloc[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'A', 'l', 'l', 'o', 'c', '\0' };
-	myVirtualAlloc = (MyVirtualAlloc)myGetProcAddress(hMod, szVirtualAlloc);
-	char szVirtualFree[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'F', 'r', 'e', 'e', '\0' };
-	myVirtualFree = (MyVirtualFree)myGetProcAddress(hMod, szVirtualFree);
-	char szVirtualProtect[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'P', 'r', 'o', 't', 'e', 'c', 't', '\0' };
-	myVirtualProtect = (MyVirtualProtect)myGetProcAddress(hMod, szVirtualProtect);
-	char szGetModuleHandleA[] = { 'G', 'e', 't', 'M', 'o', 'd', 'u', 'l', 'e', 'H', 'a', 'n', 'd', 'l', 'e', 'A', '\0' };
-	myGetModuleHandleA = (MyGetModuleHandleA)myGetProcAddress(hMod, szGetModuleHandleA);
-#endif
+	// #else
+	// 	char szLoadLibrary[] = { 'L', 'o', 'a', 'd', 'L', 'i', 'b', 'r', 'a', 'r', 'y', 'A', '\0' };
+	// 	myLoadLibrayA = (MyLoadLibraryA)myGetProcAddress(hMod, szLoadLibrary);
+	// 	char szVirtualAlloc[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'A', 'l', 'l', 'o', 'c', '\0' };
+	// 	myVirtualAlloc = (MyVirtualAlloc)myGetProcAddress(hMod, szVirtualAlloc);
+	// 	char szVirtualFree[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'F', 'r', 'e', 'e', '\0' };
+	// 	myVirtualFree = (MyVirtualFree)myGetProcAddress(hMod, szVirtualFree);
+	// 	char szVirtualProtect[] = { 'V', 'i', 'r', 't', 'u', 'a', 'l', 'P', 'r', 'o', 't', 'e', 'c', 't', '\0' };
+	// 	myVirtualProtect = (MyVirtualProtect)myGetProcAddress(hMod, szVirtualProtect);
+	// 	char szGetModuleHandleA[] = { 'G', 'e', 't', 'M', 'o', 'd', 'u', 'l', 'e', 'H', 'a', 'n', 'd', 'l', 'e', 'A', '\0' };
+	// 	myGetModuleHandleA = (MyGetModuleHandleA)myGetProcAddress(hMod, szGetModuleHandleA);
+	// #endif
 
-	//MemLoadDll
+		//MemLoadDll
 
 	PIMAGE_DOS_HEADER		pDosHeader;
 #ifdef _WIN64
@@ -472,7 +465,7 @@ void WINAPI ShellHeader()
 		if (pNTHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress > 0
 			&& pNTHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size > 0)
 		{
-	
+
 			//                         修复重定位信息                              
 
 			void *pNewBase = pMemoryAddress;
@@ -485,11 +478,11 @@ void WINAPI ShellHeader()
 			// 给出节的偏移  总尺寸=8+6*2     需要修正的地址           用于对齐4字节
 			// 重定位表是若干个相连，如果address 和 size都是0 表示结束
 			// 需要修正的地址是12位的，高4位是形态字，intel cpu下是3
-			
+
 			//假设NewBase是0x600000,而文件中设置的缺省ImageBase是0x400000,则修正偏移量就是0x200000
 
 			//注意重定位表的位置可能和硬盘文件中的偏移地址不同，应该使用加载后的地址
-			PIMAGE_BASE_RELOCATION pLoc = (PIMAGE_BASE_RELOCATION)((unsigned long)pNewBase
+			PIMAGE_BASE_RELOCATION pLoc = (PIMAGE_BASE_RELOCATION)((DWORD_PTR)pNewBase
 				+ pNTHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
 
 			while ((pLoc->VirtualAddress + pLoc->SizeOfBlock) != 0) //开始扫描重定位表
@@ -528,7 +521,7 @@ void WINAPI ShellHeader()
 			}
 
 		}
-		
+
 		//                             填充引入地址表                           
 
 		void* pImageBase = pMemoryAddress;
@@ -563,7 +556,7 @@ void WINAPI ShellHeader()
 			BYTE* pName = (BYTE*)((PBYTE)pImageBase + pID->Name);
 			int i = 0;
 
-			for (i = 0; i<NAME_BUF_SIZE; i++)
+			for (i = 0; i < NAME_BUF_SIZE; i++)
 			{
 				if (pName[i] == 0)
 				{
@@ -636,9 +629,9 @@ void WINAPI ShellHeader()
 
 		ret = TRUE;
 
-		
+
 		//                             OVER                                     
-	
+
 
 		if (!ret) //修正引入地址表失败
 		{
@@ -682,13 +675,13 @@ void WINAPI ShellHeader()
 }
 
 
-void WriteHeader(char *szPath, BYTE *bCode, DWORD dwCode_size)
+void WriteHeader(const char *szPath, BYTE *bCode, DWORD dwCode_size)
 {
 	int	cols = 16;
 	FILE *	fp = NULL;
 	fp = fopen((szPath), ("w+b"));
 
-	char * banner = "Generated by Dll2Shellcode v1.0 ----by:w1nds";
+	const char * banner = "Generated by Dll2Shellcode v2.0";
 
 	fprintf(fp,
 		"// %s\r\n\r\n"
@@ -710,20 +703,51 @@ void WriteHeader(char *szPath, BYTE *bCode, DWORD dwCode_size)
 	fclose(fp);
 }
 
-
-
-int main(int argc, char* argv[])
+void WriteHeaderNaked(const char *szPath, BYTE *code, DWORD code_size)
 {
-	
-	cout << "dllpath:";
-	string strDllpath;
-	getline(cin, strDllpath);
-	cout << endl;
-	HANDLE hFile = CreateFile(strDllpath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	FILE *	fp = NULL;
+	fp = fopen(szPath, ("w+b"));
+
+	const char * banner = "Generated by Dll2Shellcode v2.0";
+
+	fprintf(fp,
+		"// %s\r\n\r\n"
+		"// Length: 0x%08X (bytes)\r\n"
+		"_declspec (naked) void MyFunc() \r\n"
+		"{\r\n_asm{\r\n",
+		banner, code_size);
+
+	for (DWORD i = 0; i < code_size; i++)
+	{
+
+		fprintf(fp, "_emit 0x%02X;\r\n", (BYTE)code[i]);
+	}
+	fprintf(fp, "\r\n}\r\n}\r\n");
+	fclose(fp);
+}
+
+void WriteBin(const char * szFile,BYTE *code, DWORD code_size)
+{
+	HANDLE hFile = CreateFileA(szFile, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
-		cout << "failed!" << endl;
-		return 0;
+		printf("open file %s failed\n", szFile);
+		CloseHandle(hFile);
+		return ;
+	}
+	DWORD dwReaded;
+	WriteFile(hFile, code, code_size, &dwReaded, NULL);
+	CloseHandle(hFile);
+}
+
+
+void MakeShellCode(const char *szIn, const char *szOut,int nType)
+{
+	HANDLE hFile = CreateFile(szIn, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	if (hFile == INVALID_HANDLE_VALUE)
+	{
+		printf("open file %s failed\n",szIn);
+		return ;
 	}
 	DWORD dwFileSize = GetFileSize(hFile, 0);
 	BYTE *bFileBuf = new BYTE[dwFileSize];
@@ -758,37 +782,55 @@ int main(int argc, char* argv[])
 	memcpy(bOut + dwXorShellSize + dwShellHeaderSize, &dwFlag, 4);
 	memcpy(bOut + dwXorShellSize + dwShellHeaderSize + 4, bFileBuf, dwFileSize);
 
-	for (int i = 0; i<(dwPatchSize); i++)
+	for (int i = 0; i < (dwPatchSize); i++)
 	{
 		*(bOut + dwXorShellSize + i) = 0x25 ^ bOut[dwXorShellSize + i];//xor key
 	}
 
 	//generate binary file and header file
 
-	hFile = CreateFileA("shell.dat", GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	switch (nType)
+	{
+	case 1:
+		WriteHeader(szOut, bOut, dwShellCodeLen);
+		break;
+	case 2:
+		WriteHeaderNaked(szOut, bOut, dwShellCodeLen);
+		break;
+	case 3:
+		WriteBin(szOut, bOut, dwShellCodeLen);
+		break;
+	default:
+		printf("unknow type\n");
+		break;
+	}	
+	delete[]bFileBuf;
+	delete[]bOut;
+	printf("generated success\n");
+}
+
+void CallTest(const char * szShellPath)
+{
+
+	HANDLE hFile = CreateFile(szShellPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
-		cout << "make binary file failed!" << endl;
+		printf("open file %s failed\n", szShellPath);
+		return;
 	}
-	WriteFile(hFile, bOut, dwShellCodeLen, &dwReaded, NULL);
+	DWORD dwFileSize = GetFileSize(hFile, 0);
+	BYTE *bFileBuf = new BYTE[dwFileSize];
+	DWORD dwReaded = 0;
+	ReadFile(hFile, bFileBuf, dwFileSize, &dwReaded, 0);
 	CloseHandle(hFile);
 
-	WriteHeader("ShellCode.h", bOut, dwShellCodeLen);
-
-	cout << "ok!" << endl;
-
-	
-
-
-	//call test
-	
-	LPVOID pAddr = VirtualAlloc(NULL,dwShellCodeLen,MEM_COMMIT,PAGE_EXECUTE_READWRITE);
-	memcpy(pAddr,bOut,dwShellCodeLen);
+	LPVOID pAddr = VirtualAlloc(NULL, dwFileSize,MEM_COMMIT,PAGE_EXECUTE_READWRITE);
+	memcpy(pAddr, bFileBuf, dwFileSize);
 
 #ifdef _WIN64
 	_asm
 	{
-		mov rax,pAddr;
+		mov rax, pAddr;
 		call rax;
 	}
 #else
@@ -797,12 +839,13 @@ int main(int argc, char* argv[])
 		mov eax, pAddr;
 		call eax;
 	}
-#endif
-	VirtualFree(pAddr,0,MEM_RELEASE); //MEM_DECOMMIT
-
-	
+#endif	
+	while (1)
+	{
+		OutputDebugStringA("in dll2shellcode");
+		Sleep(3000);
+	}
+//如果返回了之后还要继续执行的话就不要回收这块内存
+	VirtualFree(pAddr, 0, MEM_RELEASE); //MEM_DECOMMIT
 	delete[]bFileBuf;
-	delete[]bOut;
-	system("pause");
-	return 0;
 }
